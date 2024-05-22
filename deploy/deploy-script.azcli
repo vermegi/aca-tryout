@@ -1,0 +1,21 @@
+az login
+
+az account list -o table
+
+az group create --name aca-tryout --location francecentral
+
+
+# deploy template first with ACR access public and second container app commented out
+# run the next statement for importing inspectorgadget image into ACR
+# then re-run template with second container app uncommented and ACR access private --> WATCH IT FAIL (on both apps)
+az deployment group create --resource-group aca-tryout --template-file main.bicep
+
+
+
+az acr import --name acraca --source docker.io/jelledruyts/inspectorgadget --image inspectorgadget:latest
+
+
+# The following field(s) are either invalid or missing. Field 'template.containers.inspectorgadget.image' is invalid with details: 
+# 'Invalid value: "acraca.azurecr.io/inspectorgadget:latest": unable to pull image using Managed identity 
+# /subscriptions/xxx/resourceGroups/aca-tryout/providers/Microsoft.ManagedIdentity/userAssignedIdentities/acr-aca-identity for registry acraca.azurecr.io';. 
+# (Code: InvalidParameterValueInContainerTemplate)

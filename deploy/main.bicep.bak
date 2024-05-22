@@ -1,0 +1,104 @@
+param location string = 'francecentral'
+param vnetName string = 'myVNet'
+param subnetName string = 'mySubnet'
+param acaEnvName string = 'myContainerAppEnv'
+param acaAppName string = 'myContainerApp'
+param acrName string = 'myContainerRegistry'
+
+resource vnet 'Microsoft.Network/virtualNetworks@2021-02-01' = {
+  name: vnetName
+  location: location
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/16'
+      ]
+    }
+    subnets: [
+      {
+        name: subnetName
+        properties: {
+          addressPrefix: '10.0.0.0/24'
+        }
+      }
+    ]
+  }
+}
+
+resource acaIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2021-04-01-preview' = {
+  name: 'acaManagedIdentity'
+  location: location
+}
+
+resource acaEnvIdentityAssignment 'Microsoft.ManagedIdentity/userAssignedIdentities/providers/roleAssignments@2020-04-01-preview' = {
+  name: '${acaIdentity.name}/Microsoft.Authorization/roleAssignments/1'
+  properties: {
+    principalId: acaIdentity.properties.principalId
+    roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/00000000-0000-0000-0000-000000000000'
+  }
+}
+
+resource acaEnv 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
+  name: acaEnvName
+  location: location
+  kind: 'workloadprofile'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${acaIdentity.id}': {}
+    }
+  }
+  properties: {
+    appInsightsConfiguration: {
+      connectionString: 'string'
+    }
+    workloadProfiles: [
+      {
+        maximumCount: int
+        minimumCount: int
+        name: 'string'
+        workloadProfileType: 'string'
+      }
+    ]
+    zoneRedundant: bool
+  }
+}
+
+resource containerApp 'Microsoft.ContainerApp/containerApps@2021-02-01-preview' = {
+  name: acaAppName
+  location: location
+  properties: {
+    appServicePlanId: appServicePlan.id
+    subnetResourceId: vnet.subnets[0].id
+    containerRegistries: [
+      {
+        registryResourceId: acr.id
+        accessMode: 'AcrPull'
+        identity: {
+          type: 'SystemAssigned'
+        }
+      }
+    ]
+  }
+}
+
+resource acr 'Microsoft.ContainerRegistry/registries@2021-06-01-preview' = {
+  name: acrName
+  location: location
+  properties: {
+    sku: {
+      name: 'Standard'
+    }
+    networkRuleSet: {
+      defaultAction: 'Deny'
+      virtualNetworkRules: [
+        {
+          subnetResourceId: vnet.subnets[0].id
+          ignoreMissingVnetServiceEndpoint: false
+        }
+      ]
+    }
+  }
+}
+
+output containerAppFqdn string = containerApp.properties.fqdn
