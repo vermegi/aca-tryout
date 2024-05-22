@@ -4,6 +4,7 @@ az account list -o table
 
 az group create --name aca-tryout --location francecentral
 
+cd deploy
 
 # deploy template first with ACR access public and second container app commented out
 # run the next statement for importing inspectorgadget image into ACR
